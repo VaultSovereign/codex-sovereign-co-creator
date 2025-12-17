@@ -33,14 +33,52 @@ CODEX_BIN="${CODEX_BIN:-}"
 if [[ -z "${CODEX_BIN}" ]]; then
   if command -v codex >/dev/null 2>&1; then
     CODEX_BIN="codex"
-  elif [[ -x "${HOME}/.npm-global/bin/codex" ]]; then
-    CODEX_BIN="${HOME}/.npm-global/bin/codex"
-  elif [[ -x "/root/.npm-global/bin/codex" ]]; then
-    CODEX_BIN="/root/.npm-global/bin/codex"
+  elif command -v Codex >/dev/null 2>&1; then
+    CODEX_BIN="Codex"
   else
-    echo "error: codex not found; set CODEX_BIN or add ~/.npm-global/bin to PATH" >&2
-    exit 127
+    CANDIDATES=()
+    if [[ -n "${HOME:-}" ]]; then
+      CANDIDATES+=("${HOME}/.npm-global/bin/codex")
+      CANDIDATES+=("${HOME}/.local/bin/codex")
+    fi
+    CANDIDATES+=("/root/.npm-global/bin/codex")
+    if [[ -n "${PREFIX:-}" ]]; then
+      CANDIDATES+=("${PREFIX}/bin/codex")
+    fi
+    CANDIDATES+=("/data/data/com.termux/files/usr/bin/codex")
+    CANDIDATES+=("/usr/local/bin/codex" "/usr/bin/codex")
+    if command -v npm >/dev/null 2>&1; then
+      NPM_PREFIX="$(npm prefix -g 2>/dev/null || true)"
+      if [[ -n "${NPM_PREFIX}" ]]; then
+        CANDIDATES+=("${NPM_PREFIX}/bin/codex")
+      fi
+    fi
+
+    for candidate in "${CANDIDATES[@]}"; do
+      if [[ -x "${candidate}" ]]; then
+        CODEX_BIN="${candidate}"
+        break
+      fi
+    done
   fi
+fi
+
+if [[ -z "${CODEX_BIN}" ]]; then
+  cat >&2 <<'ERR'
+error: codex not found.
+
+Fix PATH (common):
+  export PATH="$HOME/.npm-global/bin:$PATH"
+  export PATH="$(npm prefix -g)/bin:$PATH"
+
+Termux/proot (if applicable):
+  export PATH="$PREFIX/bin:$PATH"
+  export PATH="/data/data/com.termux/files/usr/bin:$PATH"
+
+Or set an explicit binary:
+  export CODEX_BIN=/full/path/to/codex
+ERR
+  exit 127
 fi
 
 MODE="exec"

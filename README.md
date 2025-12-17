@@ -8,6 +8,7 @@ Small “prompt pack + wrapper script” to run Codex CLI in a *sovereign* workf
 - `prompts/sovereign-co-creator.md` — the base prompt (v1.1, edit to taste)
 - `scripts/fetch-openai-platform-overview.sh` — best‑effort downloader for the Platform “Overview” docs + fallback instructions
 - `docs/openai-platform-overview.SUMMARY.md` — offline summary (because direct download is often blocked by Cloudflare)
+- `docs/CAPABILITY_POLICY.md` — capability authority matrix (L1/L2/L3, hot/cold, approvals, expected evidence)
 
 ## Quickstart
 
@@ -23,6 +24,26 @@ If `codex` isn’t on your `PATH`, export:
 
 ```bash
 export PATH="$HOME/.npm-global/bin:$PATH"
+```
+
+If you installed `codex` globally via `npm`, this is often correct too:
+
+```bash
+export PATH="$(npm prefix -g)/bin:$PATH"
+```
+
+For Termux (or Kali running under Termux/proot), this is the common prefix:
+
+```bash
+export PATH="$PREFIX/bin:$PATH"
+```
+
+## Troubleshooting
+
+Detect where `codex` is installed (and print the right `PATH` export):
+
+```bash
+bash /root/work/codex-sovereign-co-creator/scripts/codex-detect
 ```
 
 ## Fetching official Platform docs

@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+print() { printf '%s\n' "$*"; }
+
+print "codex-detect"
+print "pwd: $(pwd)"
+print "user: $(id -un 2>/dev/null || true) uid=$(id -u 2>/dev/null || true)"
+print "uname: $(uname -a 2>/dev/null || true)"
+print "PATH: ${PATH:-}"
+print
+
+found_bin=""
+found_hint=""
+
+if command -v codex >/dev/null 2>&1; then
+  found_bin="$(command -v codex)"
+  found_hint="Already on PATH"
+elif command -v Codex >/dev/null 2>&1; then
+  found_bin="$(command -v Codex)"
+  found_hint="Found as 'Codex' on PATH (case-sensitive)"
+else
+  candidates=()
+
+  if [[ -n "${HOME:-}" ]]; then
+    candidates+=("${HOME}/.npm-global/bin/codex")
+    candidates+=("${HOME}/.local/bin/codex")
+  fi
+  candidates+=("/root/.npm-global/bin/codex")
+
+  if [[ -n "${PREFIX:-}" ]]; then
+    candidates+=("${PREFIX}/bin/codex")
+  fi
+  candidates+=("/data/data/com.termux/files/usr/bin/codex")
+
+  candidates+=("/usr/local/bin/codex" "/usr/bin/codex")
+
+  if command -v npm >/dev/null 2>&1; then
+    npm_prefix="$(npm prefix -g 2>/dev/null || true)"
+    if [[ -n "${npm_prefix}" ]]; then
+      candidates+=("${npm_prefix}/bin/codex")
+    fi
+  fi
+
+  for candidate in "${candidates[@]}"; do
+    if [[ -x "${candidate}" ]]; then
+      found_bin="${candidate}"
+      case "${candidate}" in
+        */.npm-global/bin/codex)
+          found_hint="Add: export PATH=\"${candidate%/codex}:\$PATH\""
+          ;;
+        */.local/bin/codex)
+          found_hint="Add: export PATH=\"${candidate%/codex}:\$PATH\""
+          ;;
+        */com.termux*/usr/bin/codex)
+          found_hint="Add: export PATH=\"${candidate%/codex}:\$PATH\""
+          ;;
+        */bin/codex)
+          found_hint="Add: export PATH=\"${candidate%/codex}:\$PATH\""
+          ;;
+        *)
+          found_hint="Add its directory to PATH"
+          ;;
+      esac
+      break
+    fi
+  done
+fi
+
+if [[ -n "${found_bin}" ]]; then
+  print "FOUND: ${found_bin}"
+  if [[ -n "${found_hint}" ]]; then
+    print "${found_hint}"
+  fi
+  print
+  "${found_bin}" --version 2>/dev/null || true
+  exit 0
+fi
+
+print "NOT FOUND: codex is not available in this environment."
+print
+
+print "Quick checks:"
+print "  - npm present: $(command -v npm >/dev/null 2>&1 && echo yes || echo no)"
+print "  - node present: $(command -v node >/dev/null 2>&1 && echo yes || echo no)"
+print "  - PREFIX set (Termux): $( [[ -n \"${PREFIX:-}\" ]] && echo yes || echo no )"
+print "  - Termux bin exists: $( [[ -d /data/data/com.termux/files/usr/bin ]] && echo yes || echo no )"
+print
+
+print "PATH fixes to try (pick the one that matches your install):"
+print "  export PATH=\"\$HOME/.npm-global/bin:\$PATH\""
+if command -v npm >/dev/null 2>&1; then
+  npm_prefix="$(npm prefix -g 2>/dev/null || true)"
+  if [[ -n "${npm_prefix}" ]]; then
+    print "  export PATH=\"${npm_prefix}/bin:\$PATH\"    # from: npm prefix -g"
+  else
+    print "  export PATH=\"\$(npm prefix -g)/bin:\$PATH\""
+  fi
+else
+  print "  export PATH=\"\$(npm prefix -g)/bin:\$PATH\""
+fi
+print "  export PATH=\"\$PREFIX/bin:\$PATH\"          # Termux"
+print "  export PATH=\"/data/data/com.termux/files/usr/bin:\$PATH\""
+print
+
+print "If you are inside Kali under Termux/proot: install codex inside Kali (not Termux), or run it from Termux."
+print
+
+print "After adjusting PATH:"
+print "  command -v codex && codex --version"
