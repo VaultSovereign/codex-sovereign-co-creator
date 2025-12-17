@@ -5,7 +5,7 @@ Small “prompt pack + wrapper script” to run Codex CLI in a *sovereign* workf
 ## What’s here
 
 - `scripts/codex-sovereign` — run Codex with the Sovereign Co‑Creator base prompt
-- `prompts/sovereign-co-creator.md` — the base prompt (edit to taste)
+- `prompts/sovereign-co-creator.md` — the base prompt (v1.1, edit to taste)
 - `scripts/fetch-openai-platform-overview.sh` — best‑effort downloader for the Platform “Overview” docs + fallback instructions
 - `docs/openai-platform-overview.SUMMARY.md` — offline summary (because direct download is often blocked by Cloudflare)
 
@@ -34,4 +34,3 @@ The URL `https://platform.openai.com/docs/overview` is commonly protected by Clo
 ```
 
 If it reports “blocked”, open the URL in a real browser and **Save Page As…** into `work/codex-sovereign-co-creator/docs/`.
-
