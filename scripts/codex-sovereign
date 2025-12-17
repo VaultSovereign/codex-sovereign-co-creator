@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  codex-sovereign [options] "your task prompt"
+
+Options:
+  -C, --cd DIR            Project directory to run Codex in (passed to `codex -C`)
+      --exec              Run non-interactively (`codex exec`) [default]
+      --interactive       Run interactive TUI (`codex`)
+      --search            Enable Codex web search (`--search`)
+  -m, --model MODEL       Override model (passed to `codex -m`)
+      --reasoning EFFORT  Override reasoning effort (passed as `-c model_reasoning_effort="..."`)
+  -s, --sandbox MODE      Sandbox mode: read-only|workspace-write|danger-full-access
+  -a, --approval POLICY   Approval policy: untrusted|on-failure|on-request|never
+  -h, --help              Show help
+
+Environment:
+  CODEX_BIN               Path to `codex` binary (default: `codex` in PATH, else ~/.npm-global/bin/codex)
+
+Examples:
+  codex-sovereign -C /root/work/vaultmesh "Summarize this repo and suggest next steps"
+  codex-sovereign --interactive -C . "Refactor the CLI parser for clarity"
+USAGE
+}
+
+CODEX_BIN="${CODEX_BIN:-}"
+if [[ -z "${CODEX_BIN}" ]]; then
+  if command -v codex >/dev/null 2>&1; then
+    CODEX_BIN="codex"
+  elif [[ -x "${HOME}/.npm-global/bin/codex" ]]; then
+    CODEX_BIN="${HOME}/.npm-global/bin/codex"
+  elif [[ -x "/root/.npm-global/bin/codex" ]]; then
+    CODEX_BIN="/root/.npm-global/bin/codex"
+  else
+    echo "error: codex not found; set CODEX_BIN or add ~/.npm-global/bin to PATH" >&2
+    exit 127
+  fi
+fi
+
+MODE="exec"
+PROJECT_DIR=""
+MODEL=""
+REASONING=""
+SANDBOX_MODE="workspace-write"
+APPROVAL_POLICY="on-request"
+ENABLE_SEARCH=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -C|--cd)
+      PROJECT_DIR="${2:-}"
+      shift 2
+      ;;
+    --exec)
+      MODE="exec"
+      shift
+      ;;
+    --interactive)
+      MODE="interactive"
+      shift
+      ;;
+    --search)
+      ENABLE_SEARCH=1
+      shift
+      ;;
+    -m|--model)
+      MODEL="${2:-}"
+      shift 2
+      ;;
+    --reasoning)
+      REASONING="${2:-}"
+      shift 2
+      ;;
+    -s|--sandbox)
+      SANDBOX_MODE="${2:-}"
+      shift 2
+      ;;
+    -a|--approval)
+      APPROVAL_POLICY="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+USER_PROMPT="${*:-}"
+if [[ -z "${USER_PROMPT}" ]]; then
+  usage
+  exit 2
+fi
+
+BASE_PROMPT_FILE="${ROOT_DIR}/prompts/sovereign-co-creator.md"
+if [[ ! -f "${BASE_PROMPT_FILE}" ]]; then
+  echo "error: missing prompt file: ${BASE_PROMPT_FILE}" >&2
+  exit 1
+fi
+
+BASE_PROMPT="$(cat "${BASE_PROMPT_FILE}")"
+FINAL_PROMPT="${BASE_PROMPT}
+
+---
+
+## User request
+
+${USER_PROMPT}
+"
+
+CMD=("${CODEX_BIN}")
+if [[ "${ENABLE_SEARCH}" -eq 1 ]]; then
+  CMD+=("--search")
+fi
+
+CMD+=(
+  "--sandbox" "${SANDBOX_MODE}"
+  "--ask-for-approval" "${APPROVAL_POLICY}"
+)
+
+if [[ -n "${PROJECT_DIR}" ]]; then
+  CMD+=("-C" "${PROJECT_DIR}")
+fi
+
+if [[ -n "${MODEL}" ]]; then
+  CMD+=("-m" "${MODEL}")
+fi
+
+if [[ -n "${REASONING}" ]]; then
+  CMD+=("-c" "model_reasoning_effort=\"${REASONING}\"")
+fi
+
+if [[ "${MODE}" == "exec" ]]; then
+  CMD+=("exec")
+fi
+
+CMD+=("${FINAL_PROMPT}")
+
+exec "${CMD[@]}"

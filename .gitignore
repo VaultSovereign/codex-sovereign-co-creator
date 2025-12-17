@@ -1,0 +1,3 @@
+*.log
+.DS_Store
+docs/_codex_smoketest.txt
